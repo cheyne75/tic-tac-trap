@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Trap</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #1a1a2e;
+    color: #eee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.25rem;
+    letter-spacing: 0.05em;
+  }
+
+  #status {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    min-height: 1.5em;
+    color: #ccc;
+  }
+
+  /* Menu screen */
+  #menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+    margin-top: 1rem;
+  }
+
+  #menu .menu-row {
+    display: flex;
+    gap: 1rem;
+  }
+
+  #menu button {
+    padding: 0.8rem 1.8rem;
+    font-size: 1.05rem;
+    min-width: 140px;
+  }
+
+  #difficulty-select {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  #difficulty-select.visible {
+    display: flex;
+  }
+
+  .diff-label {
+    font-size: 0.9rem;
+    color: #aaa;
+  }
+
+  .diff-buttons {
+    display: flex;
+    gap: 0.6rem;
+  }
+
+  .diff-buttons button {
+    padding: 0.5rem 1.2rem;
+    font-size: 0.9rem;
+    min-width: 80px;
+  }
+
+  .diff-buttons button.active {
+    background: #2a4a6e;
+    border-color: #5a9fd4;
+    color: #fff;
+  }
+
+  /* Game area — hidden until game starts */
+  #game-area {
+    display: none;
+  }
+
+  #game-area.visible {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #game {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+  }
+
+  #mode-indicator {
+    font-size: 0.75rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Player hand areas */
+  .hand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 100px;
+  }
+
+  .hand-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .hand-pieces {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .hand-piece {
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+    border: none;
+    outline: 3px solid transparent;
+    outline-offset: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+
+  .hand-piece:hover {
+    transform: scale(1.1);
+    filter: brightness(1.15);
+  }
+
+  .hand-piece.selected {
+    outline-color: #fff;
+    filter: brightness(1.25);
+    transform: scale(1.15);
+  }
+
+  .hand-piece.used {
+    opacity: 0.15;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  /* Piece sizes */
+  .piece-S { width: 32px; height: 32px; font-size: 0.6rem; }
+  .piece-M { width: 50px; height: 50px; font-size: 0.75rem; }
+  .piece-L { width: 68px; height: 68px; font-size: 0.9rem; }
+
+  /* Board wrapper — provides perspective */
+  #board-wrapper {
+    perspective: 700px;
+    perspective-origin: 50% 40%;
+  }
+
+  /* Board — tilted into 3D */
+  #board {
+    display: grid;
+    grid-template-columns: repeat(3, 110px);
+    grid-template-rows: repeat(3, 110px);
+    gap: 6px;
+    background: linear-gradient(145deg, #3a3225, #2a2419);
+    border-radius: 10px;
+    padding: 10px;
+    transform: rotateX(45deg);
+    transform-style: preserve-3d;
+    box-shadow:
+      0 15px 0 0 #1e1a12,
+      0 16px 0 0 #161208,
+      0 20px 30px rgba(0,0,0,0.6);
+    border: 2px solid #4a4030;
+  }
+
+  /* Cells — raised tiles */
+  .cell {
+    background: linear-gradient(145deg, #1e2d4d, #14203a);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s, box-shadow 0.15s;
+    transform: translateZ(6px);
+    box-shadow:
+      0 4px 0 0 #0a1020,
+      0 5px 8px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .cell:hover {
+    background: linear-gradient(145deg, #253755, #1a2a48);
+    box-shadow:
+      0 4px 0 0 #0a1020,
+      0 5px 12px rgba(100,150,255,0.15);
+  }
+
+  .cell.valid-target {
+    background: linear-gradient(145deg, #1a3d2e, #122e20);
+    box-shadow:
+      0 4px 0 0 #081a10,
+      0 5px 12px rgba(100,255,150,0.2);
+    border-color: rgba(100,255,150,0.15);
+  }
+
+  /* Board pieces — 3D pucks */
+  .cell .board-piece {
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: absolute;
+    transform: translateZ(4px);
+    border: none;
+  }
+
+  .cell .board-piece.selectable {
+    cursor: pointer;
+  }
+
+  .cell .board-piece.selectable:hover {
+    transform: translateZ(8px);
+    filter: brightness(1.15);
+  }
+
+  .cell .board-piece.selected {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+    transform: translateZ(10px);
+    filter: brightness(1.2);
+  }
+
+
+  /* Player colors — 3D gradient pucks */
+  .color-1 {
+    background: radial-gradient(circle at 35% 30%, #f78c7c, #e74c3c 50%, #b02a1f);
+    box-shadow:
+      0 4px 0 0 #8b1a10,
+      0 6px 10px rgba(0,0,0,0.5);
+  }
+
+  .color-2 {
+    background: radial-gradient(circle at 35% 30%, #74c0f0, #3498db 50%, #1e6ea1);
+    box-shadow:
+      0 4px 0 0 #14507a,
+      0 6px 10px rgba(0,0,0,0.5);
+  }
+
+  /* Win line */
+  .cell.win-cell .board-piece {
+    animation: pulse3d 0.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes pulse3d {
+    from {
+      filter: brightness(1);
+      transform: translateZ(4px);
+    }
+    to {
+      filter: brightness(1.4);
+      transform: translateZ(12px);
+    }
+  }
+
+  /* Buttons */
+  #controls {
+    margin-top: 1.2rem;
+    display: flex;
+    gap: 1rem;
+  }
+
+  button {
+    background: #16213e;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 0.5rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.15s;
+  }
+
+  button:hover { background: #1a2745; }
+
+  #cancel-btn {
+    display: none;
+  }
+
+  /* Turn indicator colors */
+  .turn-1 { color: #e74c3c; }
+  .turn-2 { color: #3498db; }
+
+  /* Controls buttons — unified style */
+  #controls button {
+    background: #16213e;
+    color: #eee;
+    border: 1px solid #444;
+    padding: 0.5rem 1.2rem;
+    font-size: 0.9rem;
+    border-radius: 6px;
+  }
+  #controls button:hover {
+    background: #1a2745;
+  }
+
+  /* Menu help button — subtle style */
+  .menu-help-btn {
+    background: transparent;
+    border: 1px solid #555;
+    color: #999;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8rem;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+    margin-top: 0.5rem;
+  }
+  .menu-help-btn:hover {
+    color: #eee;
+    border-color: #999;
+    background: transparent;
+  }
+
+  /* Modal overlay */
+  #rules-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0,0,0,0.7);
+    align-items: center;
+    justify-content: center;
+  }
+  #rules-modal.visible { display: flex; }
+
+  .rules-box {
+    background: #1e2a45;
+    border: 1px solid #3a4a6a;
+    border-radius: 12px;
+    padding: 2rem 2.2rem;
+    max-width: 420px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+  }
+  .rules-box h2 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    color: #fff;
+  }
+  .rules-box h3 {
+    font-size: 0.95rem;
+    margin: 1rem 0 0.4rem;
+    color: #8ab4f8;
+  }
+  .rules-box p, .rules-box li {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: #bbb;
+  }
+  .rules-box ul {
+    padding-left: 1.2rem;
+    margin: 0.3rem 0;
+  }
+  .rules-box li { margin-bottom: 0.3rem; }
+  .rules-box .close-rules {
+    position: absolute;
+    top: 0.8rem;
+    right: 1rem;
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+  }
+  .rules-box .close-rules:hover { color: #fff; background: transparent; }
+  .rules-box .piece-demo {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    vertical-align: middle;
+    margin: 0 2px;
+  }
+  .rules-box .demo-red { background: #e74c3c; }
+  .rules-box .demo-blue { background: #3498db; }
+  .rules-box .demo-sm { width: 10px; height: 10px; }
+  .rules-box .demo-lg { width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+
+<h1>Tic Tac Trap</h1>
+<div id="status"></div>
+
+<!-- Menu screen -->
+<div id="menu">
+  <div class="menu-row">
+    <button onclick="startGame('pvp')">vs Friend</button>
+    <button onclick="showDifficulty()">vs Computer</button>
+  </div>
+  <div id="difficulty-select">
+    <div class="diff-label">Choose difficulty:</div>
+    <div class="diff-buttons">
+      <button onclick="startGame('pvc','easy')">Easy</button>
+      <button onclick="startGame('pvc','medium')">Medium</button>
+      <button onclick="startGame('pvc','hard')">Hard</button>
+    </div>
+  </div>
+  <button class="menu-help-btn" onclick="showRules()">How to Play</button>
+</div>
+
+<!-- Game area (hidden until game starts) -->
+<div id="game-area">
+  <div id="mode-indicator"></div>
+  <div id="game">
+    <div class="hand" id="hand-1">
+      <div class="hand-label turn-1">Player 1</div>
+      <div class="hand-pieces" id="pieces-1"></div>
+    </div>
+
+    <div id="board-wrapper">
+      <div id="board"></div>
+    </div>
+
+    <div class="hand" id="hand-2">
+      <div class="hand-label turn-2" id="hand-2-label">Player 2</div>
+      <div class="hand-pieces" id="pieces-2"></div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button id="cancel-btn" onclick="cancelSelection()">Cancel</button>
+    <button onclick="showMenu()">New Game</button>
+    <button onclick="showRules()">How to Play</button>
+  </div>
+</div>
+
+<!-- Rules modal -->
+<div id="rules-modal" onclick="if(event.target===this)hideRules()">
+  <div class="rules-box">
+    <button class="close-rules" onclick="hideRules()">&times;</button>
+    <h2>How to Play</h2>
+    <p>Tic Tac Trap is tic-tac-toe with a twist: pieces come in three sizes and can stack on top of each other.</p>
+
+    <h3>Setup</h3>
+    <p>Each player has 6 pieces: 2 small <span class="piece-demo demo-sm demo-red"></span>, 2 medium <span class="piece-demo demo-red"></span>, and 2 large <span class="piece-demo demo-lg demo-red"></span> (red vs blue). The board is a 3&times;3 grid.</p>
+
+    <h3>On Your Turn</h3>
+    <p>Do one of the following:</p>
+    <ul>
+      <li><strong>Place</strong> a piece from your hand onto an empty space.</li>
+      <li><strong>Stack</strong> a piece from your hand on top of any smaller piece already on the board &mdash; yours or your opponent's.</li>
+      <li><strong>Move</strong> one of your pieces that's visible on the board to a different space (empty or containing a smaller piece).</li>
+    </ul>
+
+    <h3>Winning</h3>
+    <p>Get three of your pieces in a row &mdash; horizontally, vertically, or diagonally. Only the top piece in each space counts.</p>
+
+    <h3>Watch Out!</h3>
+    <p>Moving a piece off a space can reveal a hidden piece underneath. If that completes your opponent's row, <strong>they win</strong> &mdash; not you! Think carefully before moving.</p>
+  </div>
+</div>
+
+<script>
+const SIZES = ['S', 'M', 'L'];
+const SIZE_VAL = { S: 1, M: 2, L: 3 };
+const SIZE_PX = { S: 32, M: 50, L: 68 };
+const LINES = [
+  [[0,0],[0,1],[0,2]], [[1,0],[1,1],[1,2]], [[2,0],[2,1],[2,2]],
+  [[0,0],[1,0],[2,0]], [[0,1],[1,1],[2,1]], [[0,2],[1,2],[2,2]],
+  [[0,0],[1,1],[2,2]], [[0,2],[1,1],[2,0]]
+];
+
+// Game state
+let currentPlayer = 1;
+let gameOver = false;
+let winResult = null;
+let selected = null;
+let gameMode = 'pvp';   // 'pvp' or 'pvc'
+let difficulty = 'medium';
+let aiThinking = false;
+
+// Each player hand: array of { size, used }
+let hands = { 1: [], 2: [] };
+
+// Board: 3x3 grid, each cell is a stack (array) of { player, size }
+let board = [];
+
+// ───────────────────────────────────────────
+// Menu
+// ───────────────────────────────────────────
+
+function showMenu() {
+  document.getElementById('menu').style.display = 'flex';
+  document.getElementById('game-area').classList.remove('visible');
+  document.getElementById('difficulty-select').classList.remove('visible');
+  setStatus('Choose your game mode');
+}
+
+function showDifficulty() {
+  document.getElementById('difficulty-select').classList.add('visible');
+}
+
+function startGame(mode, diff) {
+  gameMode = mode;
+  if (diff) difficulty = diff;
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('game-area').classList.add('visible');
+
+  const modeText = mode === 'pvp' ? 'Player vs Player' :
+    `vs Computer (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})`;
+  document.getElementById('mode-indicator').textContent = modeText;
+
+  const label = document.getElementById('hand-2-label');
+  label.textContent = mode === 'pvc' ? 'Computer' : 'Player 2';
+
+  resetGame();
+}
+
+// ───────────────────────────────────────────
+// Core game logic
+// ───────────────────────────────────────────
+
+function initHands() {
+  hands = { 1: [], 2: [] };
+  for (let p = 1; p <= 2; p++) {
+    for (const size of SIZES) {
+      hands[p].push({ size, used: false });
+      hands[p].push({ size, used: false });
+    }
+  }
+}
+
+function initBoard() {
+  board = [];
+  for (let r = 0; r < 3; r++) {
+    board[r] = [];
+    for (let c = 0; c < 3; c++) {
+      board[r][c] = [];
+    }
+  }
+}
+
+function topPiece(r, c) {
+  const stack = board[r][c];
+  return stack.length > 0 ? stack[stack.length - 1] : null;
+}
+
+function canPlaceOn(r, c, size) {
+  const top = topPiece(r, c);
+  if (!top) return true;
+  return SIZE_VAL[size] > SIZE_VAL[top.size];
+}
+
+function checkWinFor(player) {
+  for (const line of LINES) {
+    const tops = line.map(([r, c]) => topPiece(r, c));
+    if (tops[0] && tops[1] && tops[2] &&
+        tops[0].player === player &&
+        tops[1].player === player &&
+        tops[2].player === player) {
+      return { winner: player, cells: line };
+    }
+  }
+  return null;
+}
+
+function checkWin() {
+  return checkWinFor(1) || checkWinFor(2);
+}
+
+// ───────────────────────────────────────────
+// Move helpers (shared by human + AI)
+// ───────────────────────────────────────────
+
+function getAllMoves(player) {
+  const moves = [];
+  // Hand placements
+  const usedSizes = new Set();
+  for (let i = 0; i < hands[player].length; i++) {
+    const hp = hands[player][i];
+    if (hp.used) continue;
+    // Deduplicate: only one move per unused size (pieces of same size are identical)
+    const key = hp.size;
+    if (usedSizes.has(key)) continue;
+    usedSizes.add(key);
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        if (canPlaceOn(r, c, hp.size)) {
+          moves.push({ source: 'hand', player, handIndex: i, size: hp.size, row: r, col: c });
+        }
+      }
+    }
+  }
+  // Board moves
+  for (let fr = 0; fr < 3; fr++) {
+    for (let fc = 0; fc < 3; fc++) {
+      const top = topPiece(fr, fc);
+      if (!top || top.player !== player) continue;
+      for (let tr = 0; tr < 3; tr++) {
+        for (let tc = 0; tc < 3; tc++) {
+          if (fr === tr && fc === tc) continue;
+          if (canPlaceOn(tr, tc, top.size)) {
+            moves.push({ source: 'board', player, fromRow: fr, fromCol: fc, size: top.size, row: tr, col: tc });
+          }
+        }
+      }
+    }
+  }
+  return moves;
+}
+
+function executeMove(move) {
+  // Apply move to board state
+  if (move.source === 'hand') {
+    hands[move.player][move.handIndex].used = true;
+    board[move.row][move.col].push({ player: move.player, size: move.size });
+  } else {
+    const piece = board[move.fromRow][move.fromCol].pop();
+    board[move.row][move.col].push(piece);
+  }
+}
+
+function undoMove(move) {
+  // Reverse a move (for minimax)
+  if (move.source === 'hand') {
+    hands[move.player][move.handIndex].used = false;
+    board[move.row][move.col].pop();
+  } else {
+    const piece = board[move.row][move.col].pop();
+    board[move.fromRow][move.fromCol].push(piece);
+  }
+}
+
+// Returns the game result after a move, or null if game continues
+function checkMoveResult(move) {
+  const movedFromBoard = move.source === 'board';
+  const mover = move.player;
+  const opponent = mover === 1 ? 2 : 1;
+  const opponentWin = checkWinFor(opponent);
+  const moverWin = checkWinFor(mover);
+
+  if (movedFromBoard && opponentWin) return { winner: opponent, revealed: true, cells: opponentWin.cells };
+  if (moverWin) return { winner: mover, revealed: false, cells: moverWin.cells };
+  if (opponentWin) return { winner: opponent, revealed: false, cells: opponentWin.cells };
+  return null;
+}
+
+// ───────────────────────────────────────────
+// AI Logic
+// ───────────────────────────────────────────
+
+function aiPickMove() {
+  if (difficulty === 'easy') return aiEasy();
+  if (difficulty === 'medium') return aiMedium();
+  return aiHard();
+}
+
+function aiEasy() {
+  const moves = getAllMoves(2);
+  return moves[Math.floor(Math.random() * moves.length)];
+}
+
+function aiMedium() {
+  const moves = getAllMoves(2);
+  if (moves.length === 0) return null;
+
+  // 1. Check for immediate win
+  for (const move of moves) {
+    executeMove(move);
+    const result = checkMoveResult(move);
+    undoMove(move);
+    if (result && result.winner === 2 && !result.revealed) return move;
+  }
+
+  // 2. Check for blocking opponent win
+  const oppMoves = getAllMoves(1);
+  for (const om of oppMoves) {
+    executeMove(om);
+    const result = checkMoveResult(om);
+    undoMove(om);
+    if (result && result.winner === 1) {
+      // Opponent can win at (om.row, om.col). Try to block.
+      for (const move of moves) {
+        if (move.row === om.row && move.col === om.col) {
+          // Verify this doesn't self-sabotage
+          executeMove(move);
+          const r = checkMoveResult(move);
+          undoMove(move);
+          if (!r || r.winner !== 1) return move;
+        }
+      }
+    }
+  }
+
+  // 3. Avoid moves that reveal opponent wins
+  const safeMoves = moves.filter(move => {
+    executeMove(move);
+    const r = checkMoveResult(move);
+    undoMove(move);
+    return !r || r.winner !== 1;
+  });
+
+  const pool = safeMoves.length > 0 ? safeMoves : moves;
+
+  // 4. Score remaining moves with heuristic
+  let bestScore = -Infinity;
+  let bestMove = pool[0];
+  for (const move of pool) {
+    let score = 0;
+    // Prefer center
+    if (move.row === 1 && move.col === 1) score += 3;
+    // Prefer larger pieces (more control)
+    score += SIZE_VAL[move.size];
+    // Prefer lines where we already have a piece
+    executeMove(move);
+    for (const line of LINES) {
+      const tops = line.map(([r, c]) => topPiece(r, c));
+      const ours = tops.filter(t => t && t.player === 2).length;
+      const theirs = tops.filter(t => t && t.player === 1).length;
+      if (ours === 2 && theirs === 0) score += 5;
+      if (ours === 1 && theirs === 0) score += 1;
+    }
+    undoMove(move);
+    // Add small random factor to avoid predictability
+    score += Math.random() * 0.5;
+    if (score > bestScore) { bestScore = score; bestMove = move; }
+  }
+  return bestMove;
+}
+
+let searchDeadline = 0;
+
+function aiHard() {
+  const moves = getAllMoves(2);
+  if (moves.length === 0) return null;
+
+  // Full ordering at root for best alpha-beta pruning
+  const ordered = orderMoves(moves, 2);
+
+  let bestMove = ordered[0];
+  searchDeadline = performance.now() + 1500; // 1.5 second budget
+
+  // Iterative deepening: go as deep as time allows
+  for (let depth = 2; depth <= 12; depth++) {
+    let depthBest = ordered[0];
+    let depthScore = -Infinity;
+    let timedOut = false;
+
+    for (const move of ordered) {
+      if (performance.now() > searchDeadline) { timedOut = true; break; }
+      executeMove(move);
+      const result = checkMoveResult(move);
+      let score;
+      if (result) {
+        score = result.winner === 2 ? 10000 : -10000;
+      } else {
+        score = minimax(depth - 1, -Infinity, Infinity, false);
+      }
+      undoMove(move);
+      if (score > depthScore) { depthScore = score; depthBest = move; }
+      // Instant win — no need to search deeper
+      if (score >= 10000) return depthBest;
+    }
+
+    if (!timedOut) {
+      bestMove = depthBest; // only use complete depth results
+    } else {
+      break;
+    }
+  }
+  return bestMove;
+}
+
+// Score a move quickly for ordering (better moves first = more pruning)
+function quickScore(move, player) {
+  let s = 0;
+  executeMove(move);
+  const result = checkMoveResult(move);
+  if (result) {
+    s = result.winner === player ? 10000 : -10000;
+  } else {
+    // Check if this creates two-in-a-row threats
+    for (const line of LINES) {
+      const tops = line.map(([r, c]) => topPiece(r, c));
+      const ours = tops.filter(t => t && t.player === player).length;
+      const theirs = tops.filter(t => t && t.player !== player && t).length;
+      if (ours === 2 && theirs === 0) s += 50;
+      if (theirs === 2 && ours === 0) s -= 30;
+    }
+    // Prefer gobbling opponent pieces
+    if (move.source === 'hand' || move.source === 'board') {
+      const targetTop = topPiece(move.row, move.col);
+      // We already executed, so check the piece below us
+      const stack = board[move.row][move.col];
+      if (stack.length >= 2) {
+        const below = stack[stack.length - 2];
+        if (below.player !== player) s += 20;
+      }
+    }
+    // Center control
+    if (move.row === 1 && move.col === 1) s += 10;
+  }
+  undoMove(move);
+  return s;
+}
+
+function orderMoves(moves, player) {
+  return moves
+    .map(m => ({ move: m, score: quickScore(m, player) }))
+    .sort((a, b) => b.score - a.score)
+    .map(x => x.move);
+}
+
+// Cheap move ordering: no execute/undo, just heuristic sort
+function cheapOrder(moves, player) {
+  const opp = player === 1 ? 2 : 1;
+  return moves.sort((a, b) => {
+    let sa = 0, sb = 0;
+    // Prefer placing on center
+    if (a.row === 1 && a.col === 1) sa += 5;
+    if (b.row === 1 && b.col === 1) sb += 5;
+    // Prefer larger pieces (more threatening)
+    sa += SIZE_VAL[a.size];
+    sb += SIZE_VAL[b.size];
+    // Prefer gobbling (placing on occupied cell)
+    const topA = topPiece(a.row, a.col);
+    const topB = topPiece(b.row, b.col);
+    if (topA && topA.player === opp) sa += 4;
+    if (topB && topB.player === opp) sb += 4;
+    // Prefer hand pieces over board moves (less risky)
+    if (a.source === 'hand') sa += 1;
+    if (b.source === 'hand') sb += 1;
+    return sb - sa;
+  });
+}
+
+function minimax(depth, alpha, beta, isMaximizing) {
+  if (performance.now() > searchDeadline) return evaluate();
+
+  const player = isMaximizing ? 2 : 1;
+  const moves = getAllMoves(player);
+
+  if (depth === 0 || moves.length === 0) return evaluate();
+
+  // Cheap ordering — no execute/undo overhead
+  cheapOrder(moves, player);
+
+  if (isMaximizing) {
+    let maxEval = -Infinity;
+    for (const move of moves) {
+      executeMove(move);
+      const result = checkMoveResult(move);
+      let val;
+      if (result) {
+        val = result.winner === 2 ? 10000 + depth : -(10000 + depth);
+      } else {
+        val = minimax(depth - 1, alpha, beta, false);
+      }
+      undoMove(move);
+      maxEval = Math.max(maxEval, val);
+      alpha = Math.max(alpha, val);
+      if (beta <= alpha) break;
+    }
+    return maxEval;
+  } else {
+    let minEval = Infinity;
+    for (const move of moves) {
+      executeMove(move);
+      const result = checkMoveResult(move);
+      let val;
+      if (result) {
+        val = result.winner === 2 ? 10000 + depth : -(10000 + depth);
+      } else {
+        val = minimax(depth - 1, alpha, beta, true);
+      }
+      undoMove(move);
+      minEval = Math.min(minEval, val);
+      beta = Math.min(beta, val);
+      if (beta <= alpha) break;
+    }
+    return minEval;
+  }
+}
+
+function evaluate() {
+  let score = 0;
+
+  for (const line of LINES) {
+    const tops = line.map(([r, c]) => topPiece(r, c));
+    const p2 = tops.filter(t => t && t.player === 2).length;
+    const p1 = tops.filter(t => t && t.player === 1).length;
+    const empty = tops.filter(t => !t).length;
+
+    // Two in a row with open third = strong threat
+    if (p2 === 2 && p1 === 0) score += empty > 0 ? 40 : 15;
+    if (p1 === 2 && p2 === 0) score -= empty > 0 ? 40 : 15;
+    // One in a row, rest open
+    if (p2 === 1 && p1 === 0) score += 3;
+    if (p1 === 1 && p2 === 0) score -= 3;
+
+    // Gobbling vulnerability: check if opponent pieces in this line
+    // can be gobbled by available pieces
+    for (const [r, c] of line) {
+      const top = topPiece(r, c);
+      if (!top) continue;
+      if (top.player === 2) {
+        // Can opponent gobble us here?
+        if (top.size !== 'L') score -= 1; // vulnerable piece
+      } else {
+        // Can we gobble opponent here?
+        if (top.size !== 'L') score += 1;
+      }
+    }
+  }
+
+  // Center control (very important in Gobblet)
+  const center = topPiece(1, 1);
+  if (center) {
+    const centerVal = SIZE_VAL[center.size] * 3;
+    score += center.player === 2 ? centerVal : -centerVal;
+  }
+
+  // Corner control
+  for (const [r, c] of [[0,0],[0,2],[2,0],[2,2]]) {
+    const p = topPiece(r, c);
+    if (p) score += p.player === 2 ? 2 : -2;
+  }
+
+  // Piece availability — having unused large pieces is strategic advantage
+  for (const hp of hands[2]) {
+    if (!hp.used) score += SIZE_VAL[hp.size] * 0.5;
+  }
+  for (const hp of hands[1]) {
+    if (!hp.used) score -= SIZE_VAL[hp.size] * 0.5;
+  }
+
+  // Fork detection: count lines where player has 2-in-a-row threats
+  let p2Threats = 0, p1Threats = 0;
+  for (const line of LINES) {
+    const tops = line.map(([r, c]) => topPiece(r, c));
+    const p2c = tops.filter(t => t && t.player === 2).length;
+    const p1c = tops.filter(t => t && t.player === 1).length;
+    if (p2c === 2 && p1c === 0) p2Threats++;
+    if (p1c === 2 && p2c === 0) p1Threats++;
+  }
+  // Multiple threats = fork = very strong position
+  if (p2Threats >= 2) score += 80;
+  if (p1Threats >= 2) score -= 80;
+
+  return score;
+}
+
+// ───────────────────────────────────────────
+// Rendering
+// ───────────────────────────────────────────
+
+function renderHand(player) {
+  const container = document.getElementById(`pieces-${player}`);
+  container.innerHTML = '';
+
+  const order = ['L', 'M', 'S'];
+  for (const size of order) {
+    const pieces = hands[player].filter(p => p.size === size);
+    for (let i = 0; i < pieces.length; i++) {
+      const piece = pieces[i];
+      const globalIdx = hands[player].indexOf(piece);
+      const el = document.createElement('div');
+      el.className = `hand-piece piece-${size} color-${player}`;
+      if (piece.used) {
+        el.classList.add('used');
+      } else if (!aiThinking && !gameOver && player === currentPlayer &&
+                 !(gameMode === 'pvc' && player === 2)) {
+        el.addEventListener('click', () => selectHandPiece(player, globalIdx));
+      }
+      if (selected && selected.source === 'hand' &&
+          selected.player === player && selected.handIndex === globalIdx) {
+        el.classList.add('selected');
+      }
+      el.textContent = size;
+      container.appendChild(el);
+    }
+  }
+}
+
+function renderBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+
+  const winCells = gameOver ? winResult : null;
+
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+
+      if (winCells) {
+        for (const [wr, wc] of winCells.cells) {
+          if (wr === r && wc === c) cell.classList.add('win-cell');
+        }
+      }
+
+      const top = topPiece(r, c);
+      if (top) {
+        const pieceEl = document.createElement('div');
+        pieceEl.className = `board-piece piece-${top.size} color-${top.player}`;
+        pieceEl.style.width = SIZE_PX[top.size] + 'px';
+        pieceEl.style.height = SIZE_PX[top.size] + 'px';
+        pieceEl.textContent = top.size;
+
+        const canSelect = !gameOver && !aiThinking && !selected &&
+          top.player === currentPlayer &&
+          !(gameMode === 'pvc' && currentPlayer === 2);
+        if (canSelect) {
+          pieceEl.classList.add('selectable');
+          pieceEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectBoardPiece(r, c);
+          });
+        }
+
+        if (selected && selected.source === 'board' &&
+            selected.row === r && selected.col === c) {
+          pieceEl.classList.add('selected');
+        }
+
+        cell.appendChild(pieceEl);
+
+      }
+
+      if (selected && !gameOver && !aiThinking) {
+        const canPlace = canPlaceOn(r, c, selected.size);
+        const isSource = selected.source === 'board' && selected.row === r && selected.col === c;
+        if (canPlace && !isSource) cell.classList.add('valid-target');
+      }
+
+      cell.addEventListener('click', () => cellClick(r, c));
+      boardEl.appendChild(cell);
+    }
+  }
+}
+
+function render() {
+  renderHand(1);
+  renderHand(2);
+  renderBoard();
+}
+
+// ───────────────────────────────────────────
+// Human interaction
+// ───────────────────────────────────────────
+
+function selectHandPiece(player, index) {
+  if (gameOver || aiThinking || player !== currentPlayer) return;
+  if (gameMode === 'pvc' && player === 2) return;
+
+  if (selected && selected.source === 'hand' && selected.handIndex === index) {
+    cancelSelection();
+    return;
+  }
+
+  selected = {
+    source: 'hand',
+    player,
+    size: hands[player][index].size,
+    handIndex: index
+  };
+
+  document.getElementById('cancel-btn').style.display = 'inline-block';
+  setStatus(`Player ${currentPlayer}: place your ${selected.size} piece on the board`);
+  render();
+}
+
+function selectBoardPiece(r, c) {
+  if (gameOver || aiThinking) return;
+  if (gameMode === 'pvc' && currentPlayer === 2) return;
+  const top = topPiece(r, c);
+  if (!top || top.player !== currentPlayer) return;
+
+  if (selected && selected.source === 'board' && selected.row === r && selected.col === c) {
+    cancelSelection();
+    return;
+  }
+
+  selected = {
+    source: 'board',
+    player: currentPlayer,
+    size: top.size,
+    row: r,
+    col: c
+  };
+
+  document.getElementById('cancel-btn').style.display = 'inline-block';
+  setStatus(`Player ${currentPlayer}: move your ${selected.size} piece to a new space`);
+  render();
+}
+
+function cellClick(r, c) {
+  if (gameOver || aiThinking || !selected) return;
+
+  if (selected.source === 'board' && selected.row === r && selected.col === c) {
+    cancelSelection();
+    return;
+  }
+
+  if (!canPlaceOn(r, c, selected.size)) {
+    setStatus(`Can't place there — need a larger piece!`);
+    return;
+  }
+
+  // Build move object
+  const move = selected.source === 'hand'
+    ? { source: 'hand', player: selected.player, handIndex: selected.handIndex, size: selected.size, row: r, col: c }
+    : { source: 'board', player: selected.player, fromRow: selected.row, fromCol: selected.col, size: selected.size, row: r, col: c };
+
+  selected = null;
+  document.getElementById('cancel-btn').style.display = 'none';
+
+  applyMoveAndAdvance(move);
+}
+
+function applyMoveAndAdvance(move) {
+  executeMove(move);
+
+  const result = checkMoveResult(move);
+  if (result) {
+    gameOver = true;
+    winResult = result;
+    if (result.revealed) {
+      setStatus(`Player ${result.winner} wins! Player ${move.player} revealed their row!`);
+    } else {
+      const name = (gameMode === 'pvc' && result.winner === 2) ? 'Computer' : `Player ${result.winner}`;
+      setStatus(`${name} wins!`);
+    }
+    render();
+    return;
+  }
+
+  currentPlayer = currentPlayer === 1 ? 2 : 1;
+  updateTurnStatus();
+  render();
+
+  // Trigger AI if needed
+  if (gameMode === 'pvc' && currentPlayer === 2 && !gameOver) {
+    triggerAiTurn();
+  }
+}
+
+function triggerAiTurn() {
+  aiThinking = true;
+  setStatus('Computer is thinking...');
+  render();
+
+  setTimeout(() => {
+    const move = aiPickMove();
+    if (move) {
+      aiThinking = false;
+      applyMoveAndAdvance(move);
+    } else {
+      aiThinking = false;
+      setStatus('Computer has no moves!');
+    }
+  }, 400);
+}
+
+function cancelSelection() {
+  selected = null;
+  document.getElementById('cancel-btn').style.display = 'none';
+  updateTurnStatus();
+  render();
+}
+
+function updateTurnStatus() {
+  if (gameMode === 'pvc' && currentPlayer === 2) {
+    setStatus('Computer\'s turn');
+  } else {
+    setStatus(`Player ${currentPlayer}'s turn`);
+  }
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('status');
+  el.innerHTML = msg.replace(/Player (\d)/g, (_, n) => `<span class="turn-${n}">Player ${n}</span>`);
+}
+
+function resetGame() {
+  currentPlayer = Math.random() < 0.5 ? 1 : 2;
+  gameOver = false;
+  winResult = null;
+  selected = null;
+  aiThinking = false;
+  document.getElementById('cancel-btn').style.display = 'none';
+  initHands();
+  initBoard();
+  updateTurnStatus();
+  render();
+
+  // If computer goes first, trigger AI turn
+  if (gameMode === 'pvc' && currentPlayer === 2) {
+    triggerAiTurn();
+  }
+}
+
+function showRules() {
+  document.getElementById('rules-modal').classList.add('visible');
+}
+
+function hideRules() {
+  document.getElementById('rules-modal').classList.remove('visible');
+}
+
+// Start with menu
+showMenu();
+</script>
+
+</body>
+</html>
